@@ -31,7 +31,7 @@ inline void pool()
     int* ptr = g_Pool.Alloc();
     g_Pool.Free(ptr);
 }
-
+    
 
 
 int main()
@@ -46,7 +46,7 @@ int main()
     //////////////////////////////////////
     {
         Profile p{ L"origin" };
-        for (int i = 0; i < 100000; i++)
+        for (int i = 0; i < 1000000; i++)
         {
             origin();
         }
@@ -55,13 +55,11 @@ int main()
 
     {
         Profile p{ L"pool" };
-        for (int i = 0; i < 100000; i++)
+        for (int i = 0; i < 1000000; i++)
         {
             pool();
         }
     }
-    
-
     
 
     

@@ -183,6 +183,9 @@
 #define GUARD2 0xFFFFFFFF
 //////////////////////////////////////////////////
 
+#ifdef _DEBUG
+
+#pragma pack(1)
 template <typename T>
 struct ObjectPoolNode
 {
@@ -196,6 +199,23 @@ struct ObjectPoolNode
     ObjectPoolNode* next;
 #endif
 };
+#pragma pack(pop)
+#else
+template <typename T>
+struct ObjectPoolNode
+{
+#ifdef _DEBUG
+    int guard1 = GUARD1;
+    T _data;
+    int guard2 = GUARD2;
+    ObjectPoolNode* next;
+#else
+    T _data;
+    ObjectPoolNode* next;
+#endif
+};
+#endif
+
 
 template <typename T>
 class ObjectMemoryPool
@@ -345,6 +365,9 @@ bool ObjectMemoryPool<T>::Free(T* object)
         DebugBreak(); // 가드 값이 맞지 않으면 디버그 브레이크
         return false;
     }
+    node->next = _top;
+    _top = node;
+    return true;
 #else
     // object의 메모리를 풀이 가리키는 _top으로 돌려놓음
     ObjectPoolNode<T>* node = reinterpret_cast<ObjectPoolNode<T>*>(reinterpret_cast<char*>(object) - offsetof(ObjectPoolNode<T>, _data));
@@ -352,22 +375,38 @@ bool ObjectMemoryPool<T>::Free(T* object)
     _top = node;
     return true;
 #endif
-
-    
 }
-
 
 //////////////////////////////////////////// 미완성 ////////////////////////////////////////////
 template<typename T>
 bool ObjectMemoryPool<T>::Free_Destructor(T* object)
 {
-    // 소멸자를 호출하고 메모리를 반환
-    object->~T();
+#ifdef _DEBUG
+    // object는 _data를 가리키고 있으므로 ObjectPoolNode<T>로 변환
+    ObjectPoolNode<T>* node = reinterpret_cast<ObjectPoolNode<T>*>(reinterpret_cast<char*>(object) - offsetof(ObjectPoolNode<T>, _data));
     
-    // 작업 해야 함 ~
+    // 가드 값 검사
+    if (node->guard1 != GUARD1 || node->guard2 != GUARD2)
+    {
+        DebugBreak(); // 가드 값이 맞지 않으면 디버그 브레이크
+        return false;
+    }
+    node->_data.~T();
+    node->next = _top;
+    _top = node;
+    return true;
+#else
+    // object의 메모리를 풀이 가리키는 _top으로 돌려놓음
+    ObjectPoolNode<T>* node = reinterpret_cast<ObjectPoolNode<T>*>(reinterpret_cast<char*>(object) - offsetof(ObjectPoolNode<T>, _data));
+    node->_data.~T();
+    node->next = _top;
+    _top = node;
+    return true;
+#endif
+
 }
 //////////////////////////////////////////// 미완성 ////////////////////////////////////////////
 
 
 
-//
+// 
